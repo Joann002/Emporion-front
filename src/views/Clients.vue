@@ -1,101 +1,114 @@
 <template>
-  <div class="clients">
-    <div class="header">
-      <h1>Gestion des clients</h1>
-      <button @click="openModal()" class="primary">+ Nouveau client</button>
-    </div>
+  <div class="page">
+    <PageHeader title="Clients" subtitle="Gérez votre base de clients">
+      <template #actions>
+        <button class="btn btn--primary" @click="openModal()">
+          <AppIcon name="plus" :size="18" /> Nouveau client
+        </button>
+      </template>
+    </PageHeader>
 
-    <div v-if="clientsStore.loading" class="loading">Chargement...</div>
+    <div v-if="clientsStore.loading" class="loading-block"><span class="spinner" /> Chargement…</div>
 
     <div v-else class="card">
-      <table>
-        <thead>
-          <tr>
-            <th>Nom</th>
-            <th>Email</th>
-            <th>Téléphone</th>
-            <th>Adresse</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="client in clientsStore.clients" :key="client.id">
-            <td>{{ client.name }}</td>
-            <td>{{ client.email }}</td>
-            <td>{{ client.phone || '-' }}</td>
-            <td>{{ client.address || '-' }}</td>
-            <td>
-              <button @click="openModal(client)" class="secondary">Modifier</button>
-              <button @click="deleteClient(client.id)" class="danger">Supprimer</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Email</th>
+              <th>Téléphone</th>
+              <th>Adresse</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="client in clientsStore.clients" :key="client.id">
+              <td>
+                <div class="cell-user">
+                  <span class="cell-avatar">{{ initials(client.name) }}</span>
+                  <strong>{{ client.name }}</strong>
+                </div>
+              </td>
+              <td class="muted">{{ client.email }}</td>
+              <td class="tabnum">{{ client.phone || '—' }}</td>
+              <td class="muted">{{ client.address || '—' }}</td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn--secondary btn--sm" @click="openModal(client)">
+                    <AppIcon name="pencil" :size="15" /> Modifier
+                  </button>
+                  <button class="btn btn--danger-soft btn--icon btn--sm" aria-label="Supprimer" @click="deleteClient(client.id)">
+                    <AppIcon name="trash" :size="15" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <EmptyState
+        v-if="clientsStore.clients.length === 0"
+        icon="users"
+        title="Aucun client"
+        description="Ajoutez votre premier client pour commencer à créer des commandes."
+      >
+        <template #action>
+          <button class="btn btn--primary" @click="openModal()"><AppIcon name="plus" :size="18" /> Nouveau client</button>
+        </template>
+      </EmptyState>
     </div>
 
-    <!-- Modal -->
-    <div v-if="showModal" class="modal-overlay" @click="closeModal">
-      <div class="modal" @click.stop>
-        <h2>{{ editingClient ? 'Modifier' : 'Nouveau' }} client</h2>
-        <form @submit.prevent="saveClient">
-          <div class="form-group">
-            <label>Nom *</label>
-            <input v-model="form.name" required />
-          </div>
-          <div class="form-group">
-            <label>Email *</label>
-            <input v-model="form.email" type="email" required />
-          </div>
-          <div class="form-group">
-            <label>Téléphone</label>
-            <input v-model="form.phone" />
-          </div>
-          <div class="form-group">
-            <label>Adresse</label>
-            <textarea v-model="form.address" rows="3"></textarea>
-          </div>
-          <div class="modal-actions">
-            <button type="button" @click="closeModal">Annuler</button>
-            <button type="submit" class="primary">Enregistrer</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <UiModal v-model="showModal" :title="editingClient ? 'Modifier le client' : 'Nouveau client'">
+      <form id="client-form" @submit.prevent="saveClient">
+        <div class="field">
+          <label class="field__label">Nom <span class="req">*</span></label>
+          <input v-model="form.name" class="input" required />
+        </div>
+        <div class="field">
+          <label class="field__label">Email <span class="req">*</span></label>
+          <input v-model="form.email" class="input" type="email" required />
+        </div>
+        <div class="field">
+          <label class="field__label">Téléphone</label>
+          <input v-model="form.phone" class="input" type="tel" />
+        </div>
+        <div class="field" style="margin-bottom: 0">
+          <label class="field__label">Adresse</label>
+          <textarea v-model="form.address" class="textarea" rows="3"></textarea>
+        </div>
+      </form>
+      <template #footer>
+        <button class="btn btn--secondary" @click="showModal = false">Annuler</button>
+        <button class="btn btn--primary" type="submit" form="client-form">Enregistrer</button>
+      </template>
+    </UiModal>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useClientsStore } from '../stores/clients';
+import PageHeader from '../components/ui/PageHeader.vue';
+import EmptyState from '../components/ui/EmptyState.vue';
+import UiModal from '../components/ui/UiModal.vue';
+import AppIcon from '../components/ui/AppIcon.vue';
 
 const clientsStore = useClientsStore();
 
 const showModal = ref(false);
 const editingClient = ref(null);
-const form = ref({
-  name: '',
-  email: '',
-  phone: '',
-  address: '',
-});
+const form = ref({ name: '', email: '', phone: '', address: '' });
 
-onMounted(() => {
-  clientsStore.fetchClients();
-});
+onMounted(() => clientsStore.fetchClients());
+
+const initials = (name = '') =>
+  name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
 
 const openModal = (client = null) => {
   editingClient.value = client;
-  if (client) {
-    form.value = { ...client };
-  } else {
-    form.value = { name: '', email: '', phone: '', address: '' };
-  }
+  form.value = client ? { ...client } : { name: '', email: '', phone: '', address: '' };
   showModal.value = true;
-};
-
-const closeModal = () => {
-  showModal.value = false;
-  editingClient.value = null;
 };
 
 const saveClient = async () => {
@@ -105,14 +118,14 @@ const saveClient = async () => {
     } else {
       await clientsStore.createClient(form.value);
     }
-    closeModal();
+    showModal.value = false;
   } catch (error) {
-    alert('Erreur lors de l\'enregistrement');
+    alert("Erreur lors de l'enregistrement");
   }
 };
 
 const deleteClient = async (id) => {
-  if (confirm('Êtes-vous sûr de vouloir supprimer ce client ?')) {
+  if (confirm('Supprimer ce client ?')) {
     try {
       await clientsStore.deleteClient(id);
     } catch (error) {
@@ -123,54 +136,21 @@ const deleteClient = async (id) => {
 </script>
 
 <style scoped>
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.header h1 {
-  color: #2c3e50;
-}
-
-table button {
-  margin-right: 5px;
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+.cell-user {
   display: flex;
   align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: white;
-  padding: 30px;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 500px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.modal h2 {
-  margin-bottom: 20px;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
   gap: 10px;
-  margin-top: 20px;
+}
+.cell-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--primary-soft);
+  color: var(--primary-soft-fg);
+  font-size: 12px;
+  font-weight: 600;
 }
 </style>

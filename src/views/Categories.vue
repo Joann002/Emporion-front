@@ -1,66 +1,86 @@
 <template>
-  <div class="categories">
-    <div class="header">
-      <h1>Catégories de produits</h1>
-      <button @click="openModal()" class="primary">+ Nouvelle catégorie</button>
-    </div>
+  <div class="page">
+    <PageHeader title="Catégories" subtitle="Organisez votre catalogue de produits">
+      <template #actions>
+        <button class="btn btn--primary" @click="openModal()">
+          <AppIcon name="plus" :size="18" /> Nouvelle catégorie
+        </button>
+      </template>
+    </PageHeader>
 
     <div class="card">
-      <table>
-        <thead>
-          <tr>
-            <th>Nom</th>
-            <th>Description</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="category in categories" :key="category.id">
-            <td>{{ category.name }}</td>
-            <td>{{ category.description || '-' }}</td>
-            <td>
-              <button @click="openModal(category)" class="secondary">Modifier</button>
-              <button @click="deleteCategory(category.id)" class="danger">Supprimer</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Description</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="category in categories" :key="category.id">
+              <td>
+                <span class="cell-tag"><AppIcon name="tag" :size="15" /> <strong>{{ category.name }}</strong></span>
+              </td>
+              <td class="muted">{{ category.description || '—' }}</td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn--secondary btn--sm" @click="openModal(category)">
+                    <AppIcon name="pencil" :size="15" /> Modifier
+                  </button>
+                  <button class="btn btn--danger-soft btn--icon btn--sm" aria-label="Supprimer" @click="deleteCategory(category.id)">
+                    <AppIcon name="trash" :size="15" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <EmptyState
+        v-if="categories.length === 0"
+        icon="tag"
+        title="Aucune catégorie"
+        description="Créez des catégories pour mieux ranger vos produits."
+      >
+        <template #action>
+          <button class="btn btn--primary" @click="openModal()"><AppIcon name="plus" :size="18" /> Nouvelle catégorie</button>
+        </template>
+      </EmptyState>
     </div>
 
-    <!-- Modal -->
-    <div v-if="showModal" class="modal-overlay" @click="closeModal">
-      <div class="modal" @click.stop>
-        <h2>{{ editingCategory ? 'Modifier' : 'Nouvelle' }} catégorie</h2>
-        <form @submit.prevent="saveCategory">
-          <div class="form-group">
-            <label>Nom *</label>
-            <input v-model="form.name" required />
-          </div>
-          <div class="form-group">
-            <label>Description</label>
-            <textarea v-model="form.description" rows="3"></textarea>
-          </div>
-          <div class="modal-actions">
-            <button type="button" @click="closeModal">Annuler</button>
-            <button type="submit" class="primary">Enregistrer</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <UiModal v-model="showModal" :title="editingCategory ? 'Modifier la catégorie' : 'Nouvelle catégorie'">
+      <form id="category-form" @submit.prevent="saveCategory">
+        <div class="field">
+          <label class="field__label">Nom <span class="req">*</span></label>
+          <input v-model="form.name" class="input" required />
+        </div>
+        <div class="field" style="margin-bottom: 0">
+          <label class="field__label">Description</label>
+          <textarea v-model="form.description" class="textarea" rows="3"></textarea>
+        </div>
+      </form>
+      <template #footer>
+        <button class="btn btn--secondary" @click="showModal = false">Annuler</button>
+        <button class="btn btn--primary" type="submit" form="category-form">Enregistrer</button>
+      </template>
+    </UiModal>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '../api/axios';
+import PageHeader from '../components/ui/PageHeader.vue';
+import EmptyState from '../components/ui/EmptyState.vue';
+import UiModal from '../components/ui/UiModal.vue';
+import AppIcon from '../components/ui/AppIcon.vue';
 
 const categories = ref([]);
 const showModal = ref(false);
 const editingCategory = ref(null);
-const form = ref({
-  name: '',
-  description: '',
-});
+const form = ref({ name: '', description: '' });
 
 const fetchCategories = async () => {
   try {
@@ -71,23 +91,12 @@ const fetchCategories = async () => {
   }
 };
 
-onMounted(() => {
-  fetchCategories();
-});
+onMounted(fetchCategories);
 
 const openModal = (category = null) => {
   editingCategory.value = category;
-  if (category) {
-    form.value = { ...category };
-  } else {
-    form.value = { name: '', description: '' };
-  }
+  form.value = category ? { ...category } : { name: '', description: '' };
   showModal.value = true;
-};
-
-const closeModal = () => {
-  showModal.value = false;
-  editingCategory.value = null;
 };
 
 const saveCategory = async () => {
@@ -98,14 +107,14 @@ const saveCategory = async () => {
       await api.post('/product-categories', form.value);
     }
     await fetchCategories();
-    closeModal();
+    showModal.value = false;
   } catch (error) {
-    alert('Erreur lors de l\'enregistrement');
+    alert("Erreur lors de l'enregistrement");
   }
 };
 
 const deleteCategory = async (id) => {
-  if (confirm('Êtes-vous sûr de vouloir supprimer cette catégorie ?')) {
+  if (confirm('Supprimer cette catégorie ?')) {
     try {
       await api.delete(`/product-categories/${id}`);
       await fetchCategories();
@@ -117,52 +126,12 @@ const deleteCategory = async (id) => {
 </script>
 
 <style scoped>
-.header {
-  display: flex;
-  justify-content: space-between;
+.cell-tag {
+  display: inline-flex;
   align-items: center;
-  margin-bottom: 20px;
+  gap: 8px;
 }
-
-.header h1 {
-  color: #2c3e50;
-}
-
-table button {
-  margin-right: 5px;
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: white;
-  padding: 30px;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 500px;
-}
-
-.modal h2 {
-  margin-bottom: 20px;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
+.cell-tag :deep(.icon) {
+  color: var(--text-subtle);
 }
 </style>

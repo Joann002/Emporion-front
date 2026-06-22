@@ -1,109 +1,124 @@
 <template>
-  <div class="products">
-    <div class="header">
-      <h1>Gestion des produits</h1>
-      <button @click="openModal()" class="primary">+ Nouveau produit</button>
-    </div>
+  <div class="page">
+    <PageHeader title="Produits" subtitle="Votre catalogue et niveaux de stock">
+      <template #actions>
+        <button class="btn btn--primary" @click="openModal()">
+          <AppIcon name="plus" :size="18" /> Nouveau produit
+        </button>
+      </template>
+    </PageHeader>
 
-    <!-- Filtres -->
-    <div class="card filters">
-      <div class="filter-group">
-        <input 
-          v-model="searchQuery" 
-          type="text" 
-          placeholder="Rechercher un produit..."
-          class="search-input"
-        />
-        <select v-model="filterCategory">
+    <!-- Filters -->
+    <div class="card">
+      <div class="card__body filters">
+        <div class="search">
+          <AppIcon name="search" :size="18" />
+          <input v-model="searchQuery" class="input" type="search" placeholder="Rechercher un produit…" />
+        </div>
+        <select v-model="filterCategory" class="select">
           <option :value="null">Toutes les catégories</option>
-          <option v-for="cat in productsStore.categories" :key="cat.id" :value="cat.id">
-            {{ cat.name }}
-          </option>
+          <option v-for="cat in productsStore.categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
         </select>
-        <select v-model="filterStock">
+        <select v-model="filterStock" class="select">
           <option value="all">Tous les stocks</option>
-          <option value="low">Stock bas (< 10)</option>
-          <option value="out">Rupture de stock</option>
+          <option value="low">Stock bas (&lt; 10)</option>
+          <option value="out">Rupture</option>
         </select>
       </div>
     </div>
 
-    <div v-if="productsStore.loading" class="loading">Chargement...</div>
+    <div v-if="productsStore.loading" class="loading-block"><span class="spinner" /> Chargement…</div>
 
     <div v-else class="card">
-      <table>
-        <thead>
-          <tr>
-            <th>Nom</th>
-            <th>Catégorie</th>
-            <th>Prix</th>
-            <th>Stock</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="product in filteredProducts" :key="product.id">
-            <td>{{ product.name }}</td>
-            <td>{{ product.category?.name || '-' }}</td>
-            <td>{{ product.price }} €</td>
-            <td>
-              <span :class="{ 'low-stock': product.stock_quantity < 10, 'out-stock': product.stock_quantity === 0 }">
-                {{ product.stock_quantity }}
-              </span>
-            </td>
-            <td>
-              <button @click="openModal(product)" class="secondary">Modifier</button>
-              <button @click="deleteProduct(product.id)" class="danger">Supprimer</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p v-if="filteredProducts.length === 0" class="empty-state">Aucun produit trouvé</p>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Produit</th>
+              <th>Catégorie</th>
+              <th class="text-right">Prix</th>
+              <th class="text-right">Stock</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="product in filteredProducts" :key="product.id">
+              <td><strong>{{ product.name }}</strong></td>
+              <td>
+                <span v-if="product.category?.name" class="badge badge--neutral">{{ product.category.name }}</span>
+                <span v-else class="muted">—</span>
+              </td>
+              <td class="text-right tabnum">{{ formatMoney(product.price) }}</td>
+              <td class="text-right">
+                <span class="badge tabnum" :class="stockTone(product.stock_quantity)">
+                  {{ product.stock_quantity }}
+                </span>
+              </td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn--secondary btn--sm" @click="openModal(product)">
+                    <AppIcon name="pencil" :size="15" /> Modifier
+                  </button>
+                  <button class="btn btn--danger-soft btn--icon btn--sm" aria-label="Supprimer" @click="deleteProduct(product.id)">
+                    <AppIcon name="trash" :size="15" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <EmptyState
+        v-if="filteredProducts.length === 0"
+        icon="box"
+        title="Aucun produit trouvé"
+        description="Ajustez vos filtres ou ajoutez un nouveau produit au catalogue."
+      />
     </div>
 
-    <!-- Modal -->
-    <div v-if="showModal" class="modal-overlay" @click="closeModal">
-      <div class="modal" @click.stop>
-        <h2>{{ editingProduct ? 'Modifier' : 'Nouveau' }} produit</h2>
-        <form @submit.prevent="saveProduct">
-          <div class="form-group">
-            <label>Nom *</label>
-            <input v-model="form.name" required />
+    <UiModal v-model="showModal" :title="editingProduct ? 'Modifier le produit' : 'Nouveau produit'">
+      <form id="product-form" @submit.prevent="saveProduct">
+        <div class="field">
+          <label class="field__label">Nom <span class="req">*</span></label>
+          <input v-model="form.name" class="input" required />
+        </div>
+        <div class="field">
+          <label class="field__label">Description</label>
+          <textarea v-model="form.description" class="textarea" rows="2"></textarea>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label class="field__label">Prix (€) <span class="req">*</span></label>
+            <input v-model="form.price" class="input" type="number" step="0.01" min="0" required />
           </div>
-          <div class="form-group">
-            <label>Description</label>
-            <textarea v-model="form.description" rows="3"></textarea>
+          <div class="field">
+            <label class="field__label">Stock <span class="req">*</span></label>
+            <input v-model="form.stock_quantity" class="input" type="number" min="0" required />
           </div>
-          <div class="form-group">
-            <label>Prix *</label>
-            <input v-model="form.price" type="number" step="0.01" required />
-          </div>
-          <div class="form-group">
-            <label>Quantité en stock *</label>
-            <input v-model="form.stock_quantity" type="number" required />
-          </div>
-          <div class="form-group">
-            <label>Catégorie</label>
-            <select v-model="form.category_id">
-              <option :value="null">Sans catégorie</option>
-              <option v-for="cat in productsStore.categories" :key="cat.id" :value="cat.id">
-                {{ cat.name }}
-              </option>
-            </select>
-          </div>
-          <div class="modal-actions">
-            <button type="button" @click="closeModal">Annuler</button>
-            <button type="submit" class="primary">Enregistrer</button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
+        <div class="field" style="margin-bottom: 0">
+          <label class="field__label">Catégorie</label>
+          <select v-model="form.category_id" class="select">
+            <option :value="null">Sans catégorie</option>
+            <option v-for="cat in productsStore.categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+          </select>
+        </div>
+      </form>
+      <template #footer>
+        <button class="btn btn--secondary" @click="showModal = false">Annuler</button>
+        <button class="btn btn--primary" type="submit" form="product-form">Enregistrer</button>
+      </template>
+    </UiModal>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useProductsStore } from '../stores/products';
+import PageHeader from '../components/ui/PageHeader.vue';
+import EmptyState from '../components/ui/EmptyState.vue';
+import UiModal from '../components/ui/UiModal.vue';
+import AppIcon from '../components/ui/AppIcon.vue';
 
 const productsStore = useProductsStore();
 
@@ -112,36 +127,30 @@ const filterCategory = ref(null);
 const filterStock = ref('all');
 const showModal = ref(false);
 const editingProduct = ref(null);
-const form = ref({
-  name: '',
-  description: '',
-  price: 0,
-  stock_quantity: 0,
-  category_id: null,
-});
+const form = ref({ name: '', description: '', price: 0, stock_quantity: 0, category_id: null });
+
+const formatMoney = (amount) =>
+  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount || 0);
+
+const stockTone = (qty) => {
+  if (qty === 0) return 'badge--danger';
+  if (qty < 10) return 'badge--warning';
+  return 'badge--success';
+};
 
 const filteredProducts = computed(() => {
   let products = productsStore.products;
-
-  // Filtrer par recherche
   if (searchQuery.value) {
-    products = products.filter(p => 
-      p.name.toLowerCase().includes(searchQuery.value.toLowerCase())
-    );
+    products = products.filter((p) => p.name.toLowerCase().includes(searchQuery.value.toLowerCase()));
   }
-
-  // Filtrer par catégorie
   if (filterCategory.value) {
-    products = products.filter(p => p.category?.id === filterCategory.value);
+    products = products.filter((p) => p.category?.id === filterCategory.value);
   }
-
-  // Filtrer par stock
   if (filterStock.value === 'low') {
-    products = products.filter(p => p.stock_quantity < 10 && p.stock_quantity > 0);
+    products = products.filter((p) => p.stock_quantity < 10 && p.stock_quantity > 0);
   } else if (filterStock.value === 'out') {
-    products = products.filter(p => p.stock_quantity === 0);
+    products = products.filter((p) => p.stock_quantity === 0);
   }
-
   return products;
 });
 
@@ -152,29 +161,16 @@ onMounted(async () => {
 
 const openModal = (product = null) => {
   editingProduct.value = product;
-  if (product) {
-    form.value = {
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      stock_quantity: product.stock_quantity,
-      category_id: product.category?.id || null,
-    };
-  } else {
-    form.value = {
-      name: '',
-      description: '',
-      price: 0,
-      stock_quantity: 0,
-      category_id: null,
-    };
-  }
+  form.value = product
+    ? {
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        stock_quantity: product.stock_quantity,
+        category_id: product.category?.id || null,
+      }
+    : { name: '', description: '', price: 0, stock_quantity: 0, category_id: null };
   showModal.value = true;
-};
-
-const closeModal = () => {
-  showModal.value = false;
-  editingProduct.value = null;
 };
 
 const saveProduct = async () => {
@@ -184,14 +180,14 @@ const saveProduct = async () => {
     } else {
       await productsStore.createProduct(form.value);
     }
-    closeModal();
+    showModal.value = false;
   } catch (error) {
-    alert('Erreur lors de l\'enregistrement');
+    alert("Erreur lors de l'enregistrement");
   }
 };
 
 const deleteProduct = async (id) => {
-  if (confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) {
+  if (confirm('Supprimer ce produit ?')) {
     try {
       await productsStore.deleteProduct(id);
     } catch (error) {
@@ -202,89 +198,33 @@ const deleteProduct = async (id) => {
 </script>
 
 <style scoped>
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.header h1 {
-  color: #2c3e50;
-}
-
-.low-stock {
-  color: #f44336;
-  font-weight: bold;
-}
-
-.out-stock {
-  color: #d32f2f;
-  font-weight: bold;
-  background-color: #ffebee;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
 .filters {
-  margin-bottom: 20px;
-  padding: 15px;
-}
-
-.filter-group {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr;
-  gap: 10px;
+  gap: 12px;
 }
-
-.search-input {
-  margin-bottom: 0;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 40px;
-  color: #999;
-  font-style: italic;
-}
-
-table button {
-  margin-right: 5px;
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+.search {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  z-index: 1000;
 }
-
-.modal {
-  background: white;
-  padding: 30px;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 500px;
-  max-height: 90vh;
-  overflow-y: auto;
+.search :deep(.icon) {
+  position: absolute;
+  left: 12px;
+  color: var(--text-subtle);
+  pointer-events: none;
 }
-
-.modal h2 {
-  margin-bottom: 20px;
+.search .input {
+  padding-left: 38px;
 }
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
