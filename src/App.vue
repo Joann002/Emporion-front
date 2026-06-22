@@ -1,138 +1,98 @@
 <template>
-  <div id="app">
-    <Navbar v-if="authStore.isAuthenticated" />
-    <main class="container">
-      <router-view />
-    </main>
+  <!-- Authenticated app shell -->
+  <div v-if="authStore.isAuthenticated" class="shell">
+    <AppSidebar :open="sidebarOpen" @navigate="sidebarOpen = false" />
+
+    <Transition name="fade">
+      <div
+        v-if="sidebarOpen"
+        class="shell__scrim"
+        @click="sidebarOpen = false"
+      />
+    </Transition>
+
+    <div class="shell__main">
+      <AppTopbar @toggle-sidebar="sidebarOpen = !sidebarOpen" />
+      <main class="shell__content">
+        <RouterView v-slot="{ Component }">
+          <Transition name="page" mode="out-in">
+            <component :is="Component" />
+          </Transition>
+        </RouterView>
+      </main>
+    </div>
   </div>
+
+  <!-- Unauthenticated (auth pages render full-screen) -->
+  <RouterView v-else />
 </template>
 
 <script setup>
+import { ref } from 'vue';
+import { RouterView } from 'vue-router';
 import { useAuthStore } from './stores/auth';
-import Navbar from './components/Navbar.vue';
+import AppSidebar from './components/layout/AppSidebar.vue';
+import AppTopbar from './components/layout/AppTopbar.vue';
 
 const authStore = useAuthStore();
+const sidebarOpen = ref(false);
 </script>
 
-<style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+<style scoped>
+.shell {
+  min-height: 100dvh;
 }
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background-color: #f5f5f5;
+.shell__main {
+  margin-left: var(--sidebar-w);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
-
-.container {
-  max-width: 1200px;
+.shell__content {
+  flex: 1;
+  width: 100%;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 28px 24px 48px;
+}
+.shell__scrim {
+  display: none;
 }
 
-button {
-  cursor: pointer;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
-  font-size: 14px;
-  transition: all 0.3s;
+@media (max-width: 1023px) {
+  .shell__main {
+    margin-left: 0;
+  }
+  .shell__scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(15, 23, 42, 0.5);
+  }
+  .shell__content {
+    padding: 20px 16px 40px;
+  }
 }
 
-button.primary {
-  background-color: #4CAF50;
-  color: white;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
-button.primary:hover {
-  background-color: #45a049;
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
 }
-
-button.secondary {
-  background-color: #2196F3;
-  color: white;
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
 }
-
-button.secondary:hover {
-  background-color: #0b7dda;
-}
-
-button.danger {
-  background-color: #f44336;
-  color: white;
-}
-
-button.danger:hover {
-  background-color: #da190b;
-}
-
-input, select, textarea {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  margin-bottom: 10px;
-}
-
-input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: #4CAF50;
-}
-
-.form-group {
-  margin-bottom: 15px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: 500;
-}
-
-.card {
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-th, td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-}
-
-th {
-  background-color: #f5f5f5;
-  font-weight: 600;
-}
-
-tr:hover {
-  background-color: #f9f9f9;
-}
-
-.error {
-  color: #f44336;
-  font-size: 14px;
-  margin-top: 5px;
-}
-
-.loading {
-  text-align: center;
-  padding: 20px;
-  font-size: 18px;
-  color: #666;
+.page-leave-to {
+  opacity: 0;
 }
 </style>
