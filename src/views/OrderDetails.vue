@@ -87,6 +87,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { useOrdersStore } from '../stores/orders';
+import { apiBaseUrl } from '../api/axios';
 import PageHeader from '../components/ui/PageHeader.vue';
 import StatusBadge from '../components/ui/StatusBadge.vue';
 import AppIcon from '../components/ui/AppIcon.vue';
@@ -99,7 +100,7 @@ const orderId = ref(route.params.id);
 const order = ref(null);
 const loading = ref(false);
 
-const invoiceUrl = computed(() => `http://localhost:8000/api/orders/${orderId.value}/invoice/download`);
+const invoiceUrl = computed(() => `${apiBaseUrl}/orders/${orderId.value}/invoice/download`);
 
 const fetchOrder = async () => {
   loading.value = true;

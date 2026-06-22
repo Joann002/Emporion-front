@@ -68,6 +68,7 @@
 import { onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useOrdersStore } from '../stores/orders';
+import { apiBaseUrl } from '../api/axios';
 import PageHeader from '../components/ui/PageHeader.vue';
 import EmptyState from '../components/ui/EmptyState.vue';
 import StatusBadge from '../components/ui/StatusBadge.vue';
@@ -77,7 +78,7 @@ const ordersStore = useOrdersStore();
 
 onMounted(() => ordersStore.fetchOrders());
 
-const invoiceUrl = (id) => `http://localhost:8000/api/orders/${id}/invoice/download`;
+const invoiceUrl = (id) => `${apiBaseUrl}/orders/${id}/invoice/download`;
 
 const formatDate = (dateString) =>
   new Date(dateString).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
